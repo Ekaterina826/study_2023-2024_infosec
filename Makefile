@@ -1,26 +1,36 @@
-COURSE = 
+FILES = $(patsubst %.md, %.docx, $(wildcard *.md))
+FILES += $(patsubst %.md, %.pdf, $(wildcard *.md))
 
-.PHONY: all clean
+FILTERS =
+OPTIONS =
+PDF_ENGINE =
+PDF_OPTIONS =
+FORMAT_OPTIONS =
 
-all: help
+### Cross references
+## Use pandoc-xnos (https://github.com/tomduck/pandoc-xnos)
+## Local pandoc-xnos
+FILTERS += --filter pandoc/filters/pandoc_fignos.py --filter pandoc/filters/pandoc_eqnos.py --filter pandoc/filters/pandoc_tablenos.py --filter pandoc/filters/pandoc_secnos.py
+## System-wide pandoc-xnos
+# FILTERS += --filter pandoc-fignos --filter pandoc-eqnos --filter pandoc-tablenos --filter pandoc-secnos
+## Use pandoc-crossref (https://github.com/lierdakil/pandoc-crossref)
+# FILTERS += --filter pandoc-crossref
+###
+PDF_ENGINE += --pdf-engine=lualatex --pdf-engine-opt=--shell-escape
+OPTIONS += --number-sections
+BIB_OPTIONS = --citeproc
 
-help:
-	@echo 'Usage:'
-	@echo '  make <target>'
-	@echo 
-	@echo 'Targets:'
-	@grep -E '^[a-zA-Z_0-9.-]+:.*?##.*$$' $(MAKEFILE_LIST) | grep -v '###' | sort | cut -d: -f1- | awk 'BEGIN {FS = ":.*?##"}; {printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2}'
-	@grep -E '^###.*' $(MAKEFILE_LIST) | cut -d' ' -f2- | awk 'BEGIN {FS = "###"}; {printf "%s\n", $$1, $$2}'
-	@grep -E '^[a-zA-Z_0-9.-]+:.*?###.*$$' $(MAKEFILE_LIST) | sort | cut -d: -f2- | awk 'BEGIN {FS = ":.*?###"}; {printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2}'
-	@echo
 
-list:	## List of courses
-	@./config/script/list-courses
+%.docx: %.md
+	-pandoc "$<" $(FILTERS) $(OPTIONS) $(BIB_OPTIONS) -o "$@"
 
-prepare:	## Generate directories structure
-	@./config/script/prepare
-	@touch prepare
+%.pdf: %.md
+	-pandoc "$<" $(FILTERS) $(PDF_ENGINE) $(PDF_OPTIONS) $(BIB_OPTIONS) $(FORMAT_OPTIONS) $(OPTIONS) -o "$@"
 
-submodule:	## Update submules
-	git submodule update --init --recursive
-	git submodule foreach 'git fetch origin; git checkout $$(git rev-parse --abbrev-ref HEAD); git reset --hard origin/$$(git rev-parse --abbrev-ref HEAD); git submodule update --recursive; git clean -dfx'
+all: $(FILES)
+
+
+clean:
+	-rm $(FILES) *~
+
+cleanall: clean
